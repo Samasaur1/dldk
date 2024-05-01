@@ -4,7 +4,12 @@ version = "0.1.0"
 description = ""
 authors = ["Sam <30577766+Samasaur1@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{include = "interactive/main.py"}]
+packages = [
+    {include = "interactive"},
+    {include = "train"},
+    {include = "showoff"},
+    {include = "models"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
