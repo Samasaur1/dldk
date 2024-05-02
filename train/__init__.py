@@ -2,6 +2,12 @@ import gymnasium as gym
 from gymnasium.utils.play import play
 from sys import argv, exit
 
+import torch
+from torch import nn, optim
+import numpy as np
+import random
+from tqdm import tqdm
+
 from models.q import Q
 from models.q import ReplayMemory
 from models.q import ActorCnn
@@ -17,13 +23,25 @@ def main():
     lr = 5e-4
     epochs = 1000
     batch_size = 128
+    capacity = 10000
+    tau = 0.005
+    eps_start=0.9
+    eps_end=0.5
+    eps_rate=2000
+
+    device = 'cpu'
+    if torch.cuda.is_available():
+        device = 'cuda'
+    elif torch.backends.mps.is_available():
+        device = 'mps'
+    print(f"Device: {device}")
 
     match argv[1]:
         case "q":
             env = gym.make("ALE/DonkeyKong-v5")
 
-            policy = Q(env.observation_space.shape, env.action_space.n)
-            target = Q(env.observation_space.shape, env.action_space.n)
+            policy = Q(env.observation_space.shape, env.action_space.n)#.to(device)
+            target = Q(env.observation_space.shape, env.action_space.n)#.to(device)
 
             target.load_state_dict(policy.state_dict())
 
@@ -44,12 +62,13 @@ def main():
                         action = rng.integers(0, env.action_space.n)
                     else:
                         action = policy(torch.tensor(state).float()).argmax()
+                        # action = policy(torch.tensor(state).to(device).float()).argmax()
                         # action = policy(torch.tensor(state, dtype=torch.float)).argmax()
                     global_step += 1
                     nstate, reward, term, trunc, _ = env.step(action)
                     memory.push(state, action, reward, nstate, term)
                     state = nstate
-                    count += 1
+                    # count += 1
 
                     # Update the policy network
                     if len(memory) >= batch_size:
@@ -64,11 +83,13 @@ def main():
                         # pred_vals is the predicted Q value of the sampled
                         # state-action pairs from the dataset
                         pred_vals = policy(st_batch).gather(1, act_batch).squeeze()
+                        # pred_vals = policy(st_batch.to(device)).gather(1, act_batch).squeeze()
 
                         # pred_next_vals is the predicted value of the sampled next
                         # states. This is where we use the trick of setting the value
                         # of terminal states to zero.
                         pred_next_vals = target(nst_batch).max(dim=1).values
+                        # pred_next_vals = target(nst_batch.to(device)).max(dim=1).values
                         pred_next_vals[t_batch] = 0
 
                         # expected_q is the right side of our loss from above.
