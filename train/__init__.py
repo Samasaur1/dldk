@@ -23,6 +23,7 @@ def main():
     lr = 5e-4
     epochs = 1000
     batch_size = 128
+    gamma = 0.99
     capacity = 10000
     tau = 0.005
     eps_start=0.9
@@ -38,15 +39,52 @@ def main():
 
     match argv[1]:
         case "q":
-            env = gym.make("ALE/DonkeyKong-v5")
+            env = gym.make("ALE/DonkeyKong-v5", obs_type="grayscale")
+            env = gym.wrappers.FrameStack(env, 4)
 
-            policy = Q(env.observation_space.shape, env.action_space.n)#.to(device)
-            target = Q(env.observation_space.shape, env.action_space.n)#.to(device)
+            class QNetwork(nn.Module):
+                def __init__(self, input_shape, num_actions):
+                    # print(f"num_actions: {num_actions}")
+                    super().__init__()
+                    self.conv = nn.Sequential(
+                        nn.Conv2d(4, 32, 8, stride=4),
+                        nn.ReLU(),
+                        nn.Conv2d(32, 64, 4, stride=2),
+                        nn.ReLU(),
+                        nn.Conv2d(64, 64, 3, stride=1),
+                        nn.ReLU(),
+                    )
+                    self.fc = nn.Sequential(
+                        nn.Linear(352, 512),
+                        nn.ReLU(),
+                        nn.Linear(512, num_actions),
+                    )
+                    # self.model = nn.Sequential(
+                    #     nn.Conv2d(4, 32, 8, stride=4),
+                    #     nn.ReLU(),
+                    #     nn.Conv2d(32, 64, 4, stride=2),
+                    #     nn.ReLU(),
+                    #     nn.Conv2d(64, 64, 3, stride=1),
+                    #     nn.ReLU(),
+                    #     nn.Flatten(),
+                    #     nn.Linear(352, 512),
+                    #     nn.ReLU(),
+                    #     nn.Linear(512, num_actions),
+                    # )
 
+                def forward(self, x):
+                    # return self.model(x / 255.0)
+                    x = self.conv(x)
+                    x = x.view(-1, 352)
+                    x = self.fc(x)
+                    return x
+
+            policy = QNetwork(env.observation_space.shape, env.action_space.n).to(device)
+            opt = optim.Adam(policy.parameters(), lr=lr)
+            target = QNetwork(env.observation_space.shape, env.action_space.n).to(device)
             target.load_state_dict(policy.state_dict())
 
             memory = ReplayMemory(capacity)
-            opt = optim.Adam(policy.parameters(), lr=lr)
             loss = nn.MSELoss()
 
             global_step = 0
@@ -59,11 +97,29 @@ def main():
 
                 while not done:
                     if rng.random() < eps_end + (eps_end - eps_start) * np.exp(-global_step / eps_rate):
-                        action = rng.integers(0, env.action_space.n)
+                        action = env.action_space.sample()
                     else:
-                        action = policy(torch.tensor(state).float()).argmax()
-                        # action = policy(torch.tensor(state).to(device).float()).argmax()
-                        # action = policy(torch.tensor(state, dtype=torch.float)).argmax()
+                        # # action = torch.argmax(policy(torch.Tensor(state).to(device)), dim=1).cpu().numpy()
+                        # # # action = policy(torch.tensor(state).float()).argmax()
+                        # # # action = policy(torch.tensor(state).to(device).float()).argmax()
+                        # # # action = policy(torch.tensor(state, dtype=torch.float)).argmax()
+                        # print(state)
+                        # print(type(state))
+                        # print(state.shape)
+                        qs = policy(torch.Tensor(state).to(device))
+                        # # qs = policy(torch.from_numpy(state).to(device))
+                        # print(qs)
+                        # print(type(qs))
+                        # print(qs.shape)
+                        mx = qs.argmax(dim=1)
+                        # print(mx)
+                        # print(type(mx))
+                        # print(mx.shape)
+                        action = mx.cpu().numpy()
+                        # print(action)
+                        # print(type(action))
+                        # print(action.shape)
+                        action = action[0] # I don't understand why this is necessary
                     global_step += 1
                     nstate, reward, term, trunc, _ = env.step(action)
                     memory.push(state, action, reward, nstate, term)
@@ -74,29 +130,29 @@ def main():
                     if len(memory) >= batch_size:
                         batch = memory.sample(batch_size)
                         st_batch, act_batch, r_batch, nst_batch, t_batch = zip(*batch)
-                        st_batch = torch.tensor(np.array(st_batch)).float()
-                        act_batch = torch.tensor(np.array(act_batch)).unsqueeze(dim=1)
-                        r_batch = torch.tensor(np.array(r_batch)).float()
-                        nst_batch = torch.tensor(np.array(nst_batch)).float()
-                        t_batch = torch.tensor(np.array(t_batch))
+                        st_batch = torch.Tensor(st_batch).to(device)
+                        act_batch = torch.Tensor(act_batch).to(device).type(torch.int64).unsqueeze(dim=1)
+                        r_batch = torch.Tensor(r_batch).to(device)
+                        nst_batch = torch.Tensor(nst_batch).to(device)
+                        t_batch = torch.Tensor(t_batch).to(device).int()
 
-                        # pred_vals is the predicted Q value of the sampled
-                        # state-action pairs from the dataset
-                        pred_vals = policy(st_batch).gather(1, act_batch).squeeze()
-                        # pred_vals = policy(st_batch.to(device)).gather(1, act_batch).squeeze()
+                        # with torch.no_grad():
+                        #     target_max, _ = target(nst_batch).max(dim=1)
+                        #     td_target = r_batch.flatten() + gamma * target_max * (1 - t_batch.flatten())
+                        # old_val = policy(st_batch).gather(1, act_batch).squeeze()
+                        # loss_val = loss(td_target, old_val)
+                        # print(nst_batch.shape)
+                        target_max, _other = target(nst_batch).max(dim=1)
+                        # print(target_max.shape, _other.shape)
+                        target_max[t_batch] = 0
+                        # print(r_batch.shape)
+                        # print(target_max.shape)
+                        td_target = r_batch.flatten() + gamma * target_max.reshape((-1,128))
+                        # print(st_batch.shape)
+                        # print(act_batch.shape)
+                        old_val = policy(st_batch).gather(1, act_batch).squeeze()
+                        loss_val = loss(td_target, old_val)
 
-                        # pred_next_vals is the predicted value of the sampled next
-                        # states. This is where we use the trick of setting the value
-                        # of terminal states to zero.
-                        pred_next_vals = target(nst_batch).max(dim=1).values
-                        # pred_next_vals = target(nst_batch.to(device)).max(dim=1).values
-                        pred_next_vals[t_batch] = 0
-
-                        # expected_q is the right side of our loss from above.
-                        expected_q = r_batch + gamma * pred_next_vals
-
-                        # This part is just like what we've seen before.
-                        loss_val = loss(pred_vals, expected_q)
                         opt.zero_grad()
                         loss_val.backward()
                         opt.step()
@@ -110,6 +166,10 @@ def main():
                     done = term or trunc
 
             torch.save(policy.state_dict(), file_name)
+        case "qq":
+            exit(1)
+        case "ac":
+            exit(1)
 
 
 
