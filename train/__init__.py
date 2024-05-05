@@ -29,6 +29,7 @@ def main():
     eps_start=0.9
     eps_end=0.5
     eps_rate=2000
+    update_frequency = 1000
 
     device = 'cpu'
     if torch.cuda.is_available():
@@ -96,6 +97,7 @@ def main():
                 done = False
 
                 while not done:
+                    # print(f"frame {global_step}, play {i}")
                     if rng.random() < eps_end + (eps_end - eps_start) * np.exp(-global_step / eps_rate):
                         action = env.action_space.sample()
                     else:
@@ -128,34 +130,35 @@ def main():
 
                     # Update the policy network
                     if len(memory) >= batch_size:
-                        batch = memory.sample(batch_size)
-                        st_batch, act_batch, r_batch, nst_batch, t_batch = zip(*batch)
-                        st_batch = torch.Tensor(st_batch).to(device)
-                        act_batch = torch.Tensor(act_batch).to(device).type(torch.int64).unsqueeze(dim=1)
-                        r_batch = torch.Tensor(r_batch).to(device)
-                        nst_batch = torch.Tensor(nst_batch).to(device)
-                        t_batch = torch.Tensor(t_batch).to(device).int()
+                        if global_step % update_frequency == 0:
+                            batch = memory.sample(batch_size)
+                            st_batch, act_batch, r_batch, nst_batch, t_batch = zip(*batch)
+                            st_batch = torch.Tensor(st_batch).to(device)
+                            act_batch = torch.Tensor(act_batch).to(device).type(torch.int64).unsqueeze(dim=1)
+                            r_batch = torch.Tensor(r_batch).to(device)
+                            nst_batch = torch.Tensor(nst_batch).to(device)
+                            t_batch = torch.Tensor(t_batch).to(device).int()
 
-                        # with torch.no_grad():
-                        #     target_max, _ = target(nst_batch).max(dim=1)
-                        #     td_target = r_batch.flatten() + gamma * target_max * (1 - t_batch.flatten())
-                        # old_val = policy(st_batch).gather(1, act_batch).squeeze()
-                        # loss_val = loss(td_target, old_val)
-                        # print(nst_batch.shape)
-                        target_max, _other = target(nst_batch).max(dim=1)
-                        # print(target_max.shape, _other.shape)
-                        target_max[t_batch] = 0
-                        # print(r_batch.shape)
-                        # print(target_max.shape)
-                        td_target = r_batch.flatten() + gamma * target_max.reshape((-1,128))
-                        # print(st_batch.shape)
-                        # print(act_batch.shape)
-                        old_val = policy(st_batch).gather(1, act_batch).squeeze()
-                        loss_val = loss(td_target, old_val)
+                            # with torch.no_grad():
+                            #     target_max, _ = target(nst_batch).max(dim=1)
+                            #     td_target = r_batch.flatten() + gamma * target_max * (1 - t_batch.flatten())
+                            # old_val = policy(st_batch).gather(1, act_batch).squeeze()
+                            # loss_val = loss(td_target, old_val)
+                            # print(nst_batch.shape)
+                            target_max, _other = target(nst_batch).max(dim=1)
+                            # print(target_max.shape, _other.shape)
+                            target_max[t_batch] = 0
+                            # print(r_batch.shape)
+                            # print(target_max.shape)
+                            td_target = r_batch.flatten() + gamma * target_max.reshape((-1,128))
+                            # print(st_batch.shape)
+                            # print(act_batch.shape)
+                            old_val = policy(st_batch).gather(1, act_batch).squeeze()
+                            loss_val = loss(td_target, old_val)
 
-                        opt.zero_grad()
-                        loss_val.backward()
-                        opt.step()
+                            opt.zero_grad()
+                            loss_val.backward()
+                            opt.step()
 
                     p_state_dict = policy.state_dict()
                     t_state_dict = target.state_dict()
