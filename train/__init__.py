@@ -30,6 +30,7 @@ def main():
     eps_end=0.5
     eps_rate=2000
     update_frequency = 1000
+    save_frequency = 5
 
     device = 'cpu'
     if torch.cuda.is_available():
@@ -160,11 +161,14 @@ def main():
                             loss_val.backward()
                             opt.step()
 
-                    p_state_dict = policy.state_dict()
-                    t_state_dict = target.state_dict()
-                    for key in p_state_dict:
-                        t_state_dict[key] = p_state_dict[key] * tau + t_state_dict[key] * (1 - tau)
-                    target.load_state_dict(t_state_dict)
+                            p_state_dict = policy.state_dict()
+                            t_state_dict = target.state_dict()
+                            for key in p_state_dict:
+                                t_state_dict[key] = p_state_dict[key] * tau + t_state_dict[key] * (1 - tau)
+                            target.load_state_dict(t_state_dict)
+
+                            if global_step % (update_frequency * save_frequency) == 0:
+                                torch.save(policy.state_dict(), file_name)
 
                     done = term or trunc
 
