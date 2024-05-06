@@ -5,6 +5,8 @@ from sys import argv, exit
 import torch
 from torch import nn
 
+import random
+
 def main():
     if len(argv) == 1:
         print("You must choose the strategy to use")
@@ -23,15 +25,15 @@ def main():
     env = gym.make("ALE/DonkeyKong-v5", obs_type="grayscale", render_mode='human')
     env = gym.wrappers.FrameStack(env, 4)
 
+    if len(argv) > 3:
+        seed = int(argv[3])
+        print(f"Setting random seed to {seed}")
+        random.seed(seed)
+        env.unwrapped.seed(seed)
+        env.action_space.seed(seed)
+
     match argv[1]:
         case "random":
-            import random
-
-            if len(argv) > 2:
-                print("Setting random seed to 0")
-                random.seed(0)
-                env.unwrapped.seed(0)
-                env.action_space.seed(0)
 
             def model(state):
                 return env.action_space.sample()
