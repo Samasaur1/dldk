@@ -4,6 +4,7 @@ from sys import argv, exit
 
 import torch
 from torch import nn
+import numpy as np
 
 import random
 
@@ -79,7 +80,7 @@ def main():
             _model.load_state_dict(torch.load(file_name))
             print("Loaded state dict")
             def model(state):
-                qs = _model(torch.Tensor(state).to(device))
+                qs = _model(torch.Tensor(np.array(state)).to(device))
                 mx = qs.argmax(dim=1)
                 action = mx.cpu().numpy()
                 return action[0]

@@ -18,8 +18,6 @@ def main():
         print("Options: ,")
         exit(1)
 
-    file_name = f"{argv[1]}.pt" if len(argv) == 2 else argv[2]
-
     lr = 5e-4
     epochs = 1000
     batch_size = 128
@@ -29,8 +27,13 @@ def main():
     eps_start=0.9
     eps_end=0.5
     eps_rate=2000
-    update_frequency = 1000
+    update_frequency = 100
     save_frequency = 5
+
+    if len(argv) == 2:
+        file_name = f"{argv[1]}-lr-{lr}-epochs-{epochs}-batch_size-{batch_size}-gamma-{gamma}-capacity-{capacity}-tau-{tau}-eps_start-{eps_start}-eps_end-{eps_end}-eps_rate-{eps_rate}-update_frequency-{update_frequency}-commit-XXXXXX-machine-XXXX-model-N.pt"
+    else:
+        file_name = argv[2]
 
     device = 'cpu'
     if torch.cuda.is_available():
@@ -109,7 +112,7 @@ def main():
                         # print(state)
                         # print(type(state))
                         # print(state.shape)
-                        qs = policy(torch.Tensor(state).to(device))
+                        qs = policy(torch.Tensor(np.array(state)).to(device))
                         # # qs = policy(torch.from_numpy(state).to(device))
                         # print(qs)
                         # print(type(qs))
