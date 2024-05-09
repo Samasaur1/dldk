@@ -1,18 +1,32 @@
 \documentclass[12pt]{article}
 \usepackage{times}
-\usepackage{fullpage}
+%\usepackage[showframe,margin=1in,headsep=1cm,headheight=2cm]{geometry}
+\usepackage[margin=1in]{geometry}
 \usepackage{setspace}
+\usepackage{graphicx}
+\usepackage[ocgcolorlinks]{hyperref}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{Page \thepage}
 
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
 \begin{document}
 \doublespacing
+\thispagestyle{empty}
 
 \noindent{}Sam Gauck
 
 \noindent{}CSCI 378
 
 \noindent{}Thursday, May 9, 2024
+
+$if(title)$
+\begin{center}
+$title$
+\end{center}
+$endif$
 
 $body$
 \end{document}
