@@ -1,0 +1,18 @@
+\documentclass[12pt]{article}
+\usepackage{times}
+\usepackage{fullpage}
+\usepackage{setspace}
+
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\begin{document}
+\doublespacing
+
+\noindent{}Sam Gauck
+
+\noindent{}CSCI 378
+
+\noindent{}Thursday, May 9, 2024
+
+$body$
+\end{document}
