@@ -9,9 +9,8 @@ import random
 from tqdm import tqdm
 from torch.distributions.categorical import Categorical
 
-from models.q import Q
+from models.q import QNetwork
 from models.q import ReplayMemory
-from models.q import ActorCnn
 
 def main():
     if len(argv) == 1:
@@ -49,32 +48,7 @@ def main():
 
     match argv[1]:
         case "q":
-            class QNetwork(nn.Module):
-                def __init__(self, input_shape, num_actions):
-                    # print(f"num_actions: {num_actions}")
-                    super().__init__()
-                    self.conv = nn.Sequential(
-                        nn.Conv2d(4, 32, 8, stride=4),
-                        nn.ReLU(),
-                        nn.Conv2d(32, 64, 4, stride=2),
-                        nn.ReLU(),
-                        nn.Conv2d(64, 64, 3, stride=1),
-                        nn.ReLU(),
-                    )
-                    self.fc = nn.Sequential(
-                        nn.Linear(352, 512),
-                        nn.ReLU(),
-                        nn.Linear(512, num_actions),
-                    )
-
-                def forward(self, x):
-                    # return self.model(x / 255.0)
-                    x = self.conv(x)
-                    x = x.view(-1, 352)
-                    x = self.fc(x)
-                    return x
-
-            policy = QNetwork(env.observation_space.shape, env.action_space.n).to(device)
+            policy = QNetwork(env.action_space.n).to(device)
             opt = optim.Adam(policy.parameters(), lr=lr)
 
             memory = ReplayMemory(capacity)
@@ -89,36 +63,17 @@ def main():
                 done = False
 
                 while not done:
-                    # print(f"frame {global_step}, play {i}")
                     if rng.random() < eps_end + (eps_end - eps_start) * np.exp(-global_step / eps_rate):
                         action = env.action_space.sample()
                     else:
-                        # # action = torch.argmax(policy(torch.Tensor(state).to(device)), dim=1).cpu().numpy()
-                        # # # action = policy(torch.tensor(state).float()).argmax()
-                        # # # action = policy(torch.tensor(state).to(device).float()).argmax()
-                        # # # action = policy(torch.tensor(state, dtype=torch.float)).argmax()
-                        # print(state)
-                        # print(type(state))
-                        # print(state.shape)
                         qs = policy(torch.Tensor(np.array(state)).to(device))
-                        # # qs = policy(torch.from_numpy(state).to(device))
-                        # print(qs)
-                        # print(type(qs))
-                        # print(qs.shape)
                         mx = qs.argmax(dim=1)
-                        # print(mx)
-                        # print(type(mx))
-                        # print(mx.shape)
                         action = mx.cpu().numpy()
-                        # print(action)
-                        # print(type(action))
-                        # print(action.shape)
                         action = action[0] # I don't understand why this is necessary
                     global_step += 1
                     nstate, reward, term, trunc, _ = env.step(action)
                     memory.push(state, action, reward, nstate, term)
                     state = nstate
-                    # count += 1
 
                     # Update the policy network
                     if len(memory) >= batch_size:
@@ -131,20 +86,9 @@ def main():
                             nst_batch = torch.Tensor(np.array(nst_batch)).to(device)
                             t_batch = torch.Tensor(t_batch).to(device).int()
 
-                            # with torch.no_grad():
-                            #     target_max, _ = target(nst_batch).max(dim=1)
-                            #     td_target = r_batch.flatten() + gamma * target_max * (1 - t_batch.flatten())
-                            # old_val = policy(st_batch).gather(1, act_batch).squeeze()
-                            # loss_val = loss(td_target, old_val)
-                            # print(nst_batch.shape)
                             target_max, _other = policy(nst_batch).max(dim=1)
-                            # print(target_max.shape, _other.shape)
                             target_max[t_batch] = 0
-                            # print(r_batch.shape)
-                            # print(target_max.shape)
                             td_target = r_batch.flatten() + gamma * target_max.reshape((-1,128))
-                            # print(st_batch.shape)
-                            # print(act_batch.shape)
                             old_val = policy(st_batch).gather(1, act_batch).squeeze()
                             loss_val = loss(td_target, old_val)
 
@@ -159,34 +103,9 @@ def main():
 
             torch.save(policy.state_dict(), file_name)
         case "qq":
-            class QNetwork(nn.Module):
-                def __init__(self, input_shape, num_actions):
-                    # print(f"num_actions: {num_actions}")
-                    super().__init__()
-                    self.conv = nn.Sequential(
-                        nn.Conv2d(4, 32, 8, stride=4),
-                        nn.ReLU(),
-                        nn.Conv2d(32, 64, 4, stride=2),
-                        nn.ReLU(),
-                        nn.Conv2d(64, 64, 3, stride=1),
-                        nn.ReLU(),
-                    )
-                    self.fc = nn.Sequential(
-                        nn.Linear(352, 512),
-                        nn.ReLU(),
-                        nn.Linear(512, num_actions),
-                    )
-
-                def forward(self, x):
-                    # return self.model(x / 255.0)
-                    x = self.conv(x)
-                    x = x.view(-1, 352)
-                    x = self.fc(x)
-                    return x
-
-            policy = QNetwork(env.observation_space.shape, env.action_space.n).to(device)
+            policy = QNetwork(env.action_space.n).to(device)
             opt = optim.Adam(policy.parameters(), lr=lr)
-            policy = QNetwork(env.observation_space.shape, env.action_space.n).to(device)
+            policy = QNetwork(env.action_space.n).to(device)
             policy.load_state_dict(policy.state_dict())
 
             memory = ReplayMemory(capacity)
@@ -201,36 +120,17 @@ def main():
                 done = False
 
                 while not done:
-                    # print(f"frame {global_step}, play {i}")
                     if rng.random() < eps_end + (eps_end - eps_start) * np.exp(-global_step / eps_rate):
                         action = env.action_space.sample()
                     else:
-                        # # action = torch.argmax(policy(torch.Tensor(state).to(device)), dim=1).cpu().numpy()
-                        # # # action = policy(torch.tensor(state).float()).argmax()
-                        # # # action = policy(torch.tensor(state).to(device).float()).argmax()
-                        # # # action = policy(torch.tensor(state, dtype=torch.float)).argmax()
-                        # print(state)
-                        # print(type(state))
-                        # print(state.shape)
                         qs = policy(torch.Tensor(np.array(state)).to(device))
-                        # # qs = policy(torch.from_numpy(state).to(device))
-                        # print(qs)
-                        # print(type(qs))
-                        # print(qs.shape)
                         mx = qs.argmax(dim=1)
-                        # print(mx)
-                        # print(type(mx))
-                        # print(mx.shape)
                         action = mx.cpu().numpy()
-                        # print(action)
-                        # print(type(action))
-                        # print(action.shape)
                         action = action[0] # I don't understand why this is necessary
                     global_step += 1
                     nstate, reward, term, trunc, _ = env.step(action)
                     memory.push(state, action, reward, nstate, term)
                     state = nstate
-                    # count += 1
 
                     # Update the policy network
                     if len(memory) >= batch_size:
@@ -243,20 +143,9 @@ def main():
                             nst_batch = torch.Tensor(np.array(nst_batch)).to(device)
                             t_batch = torch.Tensor(t_batch).to(device).int()
 
-                            # with torch.no_grad():
-                            #     target_max, _ = target(nst_batch).max(dim=1)
-                            #     td_target = r_batch.flatten() + gamma * target_max * (1 - t_batch.flatten())
-                            # old_val = policy(st_batch).gather(1, act_batch).squeeze()
-                            # loss_val = loss(td_target, old_val)
-                            # print(nst_batch.shape)
                             target_max, _other = policy(nst_batch).max(dim=1)
-                            # print(target_max.shape, _other.shape)
                             target_max[t_batch] = 0
-                            # print(r_batch.shape)
-                            # print(target_max.shape)
                             td_target = r_batch.flatten() + gamma * target_max.reshape((-1,128))
-                            # print(st_batch.shape)
-                            # print(act_batch.shape)
                             old_val = policy(st_batch).gather(1, act_batch).squeeze()
                             loss_val = loss(td_target, old_val)
 

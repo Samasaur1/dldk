@@ -6,6 +6,8 @@ import torch
 from torch import nn
 import numpy as np
 
+from models.q import QNetwork
+
 import random
 
 def main():
@@ -38,30 +40,7 @@ def main():
             def model(state):
                 return env.action_space.sample()
         case "q":
-            class QNetwork(nn.Module):
-                def __init__(self, input_shape, num_actions):
-                    super().__init__()
-                    self.conv = nn.Sequential(
-                        nn.Conv2d(4, 32, 8, stride=4),
-                        nn.ReLU(),
-                        nn.Conv2d(32, 64, 4, stride=2),
-                        nn.ReLU(),
-                        nn.Conv2d(64, 64, 3, stride=1),
-                        nn.ReLU(),
-                    )
-                    self.fc = nn.Sequential(
-                        nn.Linear(352, 512),
-                        nn.ReLU(),
-                        nn.Linear(512, num_actions),
-                    )
-
-                def forward(self, x):
-                    # return self.model(x / 255.0)
-                    x = self.conv(x)
-                    x = x.view(-1, 352)
-                    x = self.fc(x)
-                    return x
-            _model = QNetwork(env.observation_space.shape, env.action_space.n).to(device)
+            _model = QNetwork(env.action_space.n).to(device)
             print("Created model")
             _model.load_state_dict(torch.load(file_name))
             print("Loaded state dict")
@@ -72,30 +51,7 @@ def main():
                 return action[0]
             print("Model function defined")
         case "qq":
-            class QNetwork(nn.Module):
-                def __init__(self, input_shape, num_actions):
-                    super().__init__()
-                    self.conv = nn.Sequential(
-                        nn.Conv2d(4, 32, 8, stride=4),
-                        nn.ReLU(),
-                        nn.Conv2d(32, 64, 4, stride=2),
-                        nn.ReLU(),
-                        nn.Conv2d(64, 64, 3, stride=1),
-                        nn.ReLU(),
-                    )
-                    self.fc = nn.Sequential(
-                        nn.Linear(352, 512),
-                        nn.ReLU(),
-                        nn.Linear(512, num_actions),
-                    )
-
-                def forward(self, x):
-                    # return self.model(x / 255.0)
-                    x = self.conv(x)
-                    x = x.view(-1, 352)
-                    x = self.fc(x)
-                    return x
-            _model = QNetwork(env.observation_space.shape, env.action_space.n).to(device)
+            _model = QNetwork(env.action_space.n).to(device)
             print("Created model")
             _model.load_state_dict(torch.load(file_name))
             print("Loaded state dict")
