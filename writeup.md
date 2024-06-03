@@ -50,9 +50,8 @@ As expected, none of the models I trained learned how to beat the first level. H
 - <https://huggingface.co/learn/deep-rl-course/en>
 - <https://github.com/deepanshut041/Reinforcement-Learning>
 - <https://github.com/vwxyzjn/cleanrl>
-
-
-seed 53
-seed 60
-
-SEED 27
+<!--
+The best run I had was:
+```sh
+nix run .#showoff qq outputs/qq-lr-0.0005-epochs-1000-batch_size-128-gamma-0.99-capacity-10000-tau-0.005-eps_start-0.9-eps_end-0.5-eps_rate-2000-update_frequency-100-commit-01d98e619813b8d8ac2f8681fbd27ab7d87ccf7f-machine-sams_macbook_pro-model-1.pt 27
+``` -->
